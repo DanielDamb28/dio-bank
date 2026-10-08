@@ -42,6 +42,7 @@ pyproject_hooks==1.2.0
 python-discovery==1.5.1
 python-dotenv==1.2.4
 pywin32-ctypes==0.2.3
+psycopg2-binary==2.9.13
 RapidFuzz==3.14.5
 SQLAlchemy==2.0.52
 requests==2.34.2
