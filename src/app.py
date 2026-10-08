@@ -84,9 +84,9 @@ def create_app(test_config=None):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    from src.controllers import user
-    from src.controllers import auth
-    from src.controllers import role
+    from .controllers import user
+    from .controllers import auth
+    from .controllers import role
     app.register_blueprint(user.app)
     app.register_blueprint(auth.app)
     app.register_blueprint(role.app)
