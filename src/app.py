@@ -1,88 +1,45 @@
 import os
 
-from flask import Flask, current_app
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase, relationship
-import click
-from sqlalchemy.orm import Mapped, mapped_column
-import sqlalchemy as sa
-from datetime import datetime
+from flask import Flask
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-from sqlalchemy import ForeignKey
-
-
+from .models import db
+from flask_bcrypt import Bcrypt
+from flask_marshmallow import Marshmallow
 
 migrate = Migrate()
 jwt = JWTManager()
+bcrypt = Bcrypt()
+ma = Marshmallow()
 
 
+def create_app(enviroment=None):
+    if enviroment is None:
+        enviroment = os.getenv(
+            'ENVIRONMENT',
+            os.getenv('ENVIROMENT', 'development')
+        )
 
-class Base(DeclarativeBase):
-  pass
-
-db = SQLAlchemy(model_class=Base)
-
-class Role(db.Model):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(nullable=False)
-    user: Mapped[list["User"]] = relationship(back_populates='role')
-    
-
-class User(db.Model):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(unique=True)
-    password: Mapped[str] = mapped_column(nullable=False)
-    active: Mapped[bool] = mapped_column(default=True)
-    role_id: Mapped[int] = mapped_column(ForeignKey("role.id"),nullable=True)
-    role: Mapped["Role"] = relationship(back_populates='user')
-        
-
-    def __repr__(self):
-        return f"User( id={self.id!r}, username={self.username!r} )"
-
-class Post(db.Model):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str]= mapped_column(nullable=False)
-    body: Mapped[str]= mapped_column(nullable=False)
-    created:Mapped[datetime] = mapped_column(server_default=sa.func.now())
-    author_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
-
-    def __repr__(self):
-        return f"Post( id={self.id!r}, title={self.title!r}, authorId={self.author_id!r} )"
-
-
-@click.command('init-db')
-def init_db_command():
-    with current_app.app_context():
-        db.create_all()
-    click.echo('Initialized the database.')
-
-
-
-def create_app(test_config=None):
     # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
-    app.config.from_mapping(
-        SECRET_KEY='dev',
-        SQLALCHEMY_DATABASE_URI=os.environ['DATABASE_URL'],
-        JWT_SECRET_KEY='super-secret',
+    app = Flask(
+        __name__,
+        instance_relative_config=True,
+        root_path=os.path.dirname(os.path.abspath(__file__)),
+        instance_path=os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'instance',
+        ),
     )
-
-    if test_config is None:
-        # load the instance config, if it exists, when not testing
-        app.config.from_pyfile('config.py', silent=True)
-    else:
-        # load the test config if passed in
-        app.config.from_mapping(test_config)
+    app.config.from_object(f'src.config.{enviroment.title()}Config')
 
     # ensure the instance folder exists
     os.makedirs(app.instance_path, exist_ok=True)
 
-    app.cli.add_command(init_db_command)
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    bcrypt.init_app(app)
+    ma.init_app(app)
 
     from .controllers import user
     from .controllers import auth
